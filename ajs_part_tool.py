@@ -7,7 +7,6 @@ from streamlit_navigation_bar import st_navbar
 
 # Set the Streamlit page configuration
 st.set_page_config(
-    initial_sidebar_state="collapsed",
     page_title="AJS Part Tool",
     page_icon="🔧",
 )
@@ -55,6 +54,7 @@ def get_max_histogram_value(vendor_df, customer_df, part_number):
 # Navigation bar setup
 pages = ["Home", "Vendor & Customer Quotes", "List Analysis"]
 parent_dir = os.path.dirname(os.path.abspath(__file__))
+logo_path = os.path.join(parent_dir, "Untitled design.svg")  # Update logo path
 
 styles = {
     "nav": {
@@ -62,6 +62,11 @@ styles = {
         "justify-content": "left",
         "height": "70px",
         "padding": "2px"},
+    "img": {
+        "padding-left": "40px",
+        "padding-right": "14px",
+        "width": "70px",
+        "height": "70px"},
     "span": {
         "color": "white",
         "padding": "14px",
@@ -84,6 +89,7 @@ options = {
 # Render the navigation bar
 page = st_navbar(
     pages,
+    logo_path=logo_path,
     styles=styles,
     options=options,
 )
@@ -94,12 +100,16 @@ page = st_navbar(
 def load_data():
     vendor_df = pd.read_excel('VQ Details Today_TR.xlsx')
     customer_df = pd.read_excel('CQ_Detail_TODAY_TR.xlsx')
-    return vendor_df, customer_df
+    quote_df = pd.read_excel('quote_df.xlsx')
+    return vendor_df, customer_df, quote_df
 
 
-vendor_df, customer_df = load_data()
+vendor_df, customer_df, quote_df = load_data()
 
-if page == "Vendor & Customer Quotes":
+if page == "Home":
+    st.dataframe(quote_df)
+
+elif page == "Vendor & Customer Quotes":
     # Filter out rows where UNIT_COST is 0 in the vendor data
     vendor_df = vendor_df[vendor_df['UNIT_COST'] != 0]
 
@@ -156,12 +166,6 @@ if page == "Vendor & Customer Quotes":
                 "Average Price": [avg_price]
             })
 
-            # Rearrange columns
-            summary_df = summary_df[[
-                "Min Cost Range", "Max Cost Range", "Average Cost",
-                "Min Price Range", "Max Price Range", "Average Price"
-            ]]
-
             # Display the summary dataframe
             st.subheader("Cost and Price Range Summary")
             st.dataframe(summary_df)
@@ -179,7 +183,7 @@ if page == "Vendor & Customer Quotes":
                         jitter=0.3,
                         pointpos=-1.5,
                         name="Unit Cost",
-                        marker_color='#8FB8CA'
+                        marker=dict(color='#8FB8CA')
                     ))
                     fig_vendor.update_layout(title="Unit Cost Distribution")
                     st.plotly_chart(fig_vendor)
@@ -194,7 +198,7 @@ if page == "Vendor & Customer Quotes":
                         jitter=0.3,
                         pointpos=-1.5,
                         name="Unit Price",
-                        marker_color='#91AC9A'
+                        marker=dict(color='#91AC9A')
                     ))
                     fig_customer.update_layout(title="Unit Price Distribution")
                     st.plotly_chart(fig_customer)
