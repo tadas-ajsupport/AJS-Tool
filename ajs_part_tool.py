@@ -55,7 +55,6 @@ def get_max_histogram_value(vendor_df, customer_df, part_number):
 # Navigation bar setup
 pages = ["Home", "Vendor & Customer Quotes", "List Analysis"]
 parent_dir = os.path.dirname(os.path.abspath(__file__))
-logo_path = os.path.join(parent_dir, "Untitled design.svg")  # Update logo path
 
 styles = {
     "nav": {
@@ -63,11 +62,6 @@ styles = {
         "justify-content": "left",
         "height": "70px",
         "padding": "2px"},
-    "img": {
-        "padding-left": "40px",
-        "padding-right": "14px",
-        "width": "70px",
-        "height": "70px"},
     "span": {
         "color": "white",
         "padding": "14px",
@@ -90,7 +84,6 @@ options = {
 # Render the navigation bar
 page = st_navbar(
     pages,
-    logo_path=logo_path,
     styles=styles,
     options=options,
 )
