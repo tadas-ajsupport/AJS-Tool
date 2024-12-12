@@ -55,7 +55,7 @@ def get_max_histogram_value(vendor_df, customer_df, part_number):
 # Navigation bar setup
 pages = ["Home", "Vendor & Customer Quotes", "List Analysis"]
 parent_dir = os.path.dirname(os.path.abspath(__file__))
-logo_path = os.path.join(parent_dir, "/Users/tadas/PycharmProjects/AJS/Design/Untitled design.svg")  # Update logo path
+logo_path = os.path.join(parent_dir, "Untitled design.svg")  # Update logo path
 
 styles = {
     "nav": {
@@ -99,8 +99,8 @@ page = st_navbar(
 # Import Excel files
 @st.cache_data
 def load_data():
-    vendor_df = pd.read_excel('/Users/tadas/PycharmProjects/AJS/Data/VQ Details Today_TR.xlsx')
-    customer_df = pd.read_excel('/Users/tadas/PycharmProjects/AJS/Data/CQ_Detail_TODAY_TR.xlsx')
+    vendor_df = pd.read_excel('VQ Details Today_TR.xlsx')
+    customer_df = pd.read_excel('CQ_Detail_TODAY_TR.xlsx')
     return vendor_df, customer_df
 
 
