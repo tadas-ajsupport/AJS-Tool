@@ -61,8 +61,8 @@ page = st_navbar(
 # Import Excel files
 @st.cache_data
 def load_data():
-    vendor_df = pd.read_excel('/Users/tadas/PycharmProjects/AJS/AJS/Data/Spreadsheets/VQ Details Today_TR.xlsx')
-    customer_df = pd.read_excel('/Users/tadas/PycharmProjects/AJS/AJS/Data/Spreadsheets/CQ_Detail_TODAY_TR.xlsx')
+    vendor_df = pd.read_excel('VQ Details Today_TR.xlsx')
+    customer_df = pd.read_excel('CQ_Detail_TODAY_TR.xlsx')
     return vendor_df, customer_df
 
 
