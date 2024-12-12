@@ -13,7 +13,7 @@ st.set_page_config(
 # Navigation bar setup
 pages = ["Home", "Vendor & Customer Quotes", "List Analysis"]
 parent_dir = os.path.dirname(os.path.abspath(__file__))
-logo_path = os.path.join(parent_dir, "/Users/tadas/PycharmProjects/AJS/Design/Untitled design.svg")  # Update logo path
+logo_path = os.path.join(parent_dir, "Untitled design.svg")  # Update logo path
 
 styles = {
     "nav": {
