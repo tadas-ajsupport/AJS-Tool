@@ -13,12 +13,12 @@ st.set_page_config(page_title="AJS Part Tool", page_icon="🔧", layout="wide")
 # --- FUNCTIONS --- #
 @st.cache_data
 def load_data():
-    vendor_df = pd.read_excel('/Users/tadas/PycharmProjects/AJS/Data/VQ Details Today_TR.xlsx')
-    customer_df = pd.read_excel('/Users/tadas/PycharmProjects/AJS/Data/CQ_Detail_TODAY_TR.xlsx')
-    quote_df = pd.read_excel('/Users/tadas/PycharmProjects/AJS/Data/quote_df.xlsx')
-    pn_master_df = pd.read_excel('/Users/tadas/PycharmProjects/AJS/Data/pn_master.xlsx')
-    stock_df = pd.read_excel('/Users/tadas/PycharmProjects/AJS/Data/stock_df_original.xlsx')
-    sales_df = pd.read_excel('/Users/tadas/PycharmProjects/AJS/Data/sales_df.xlsx')
+    vendor_df = pd.read_excel('VQ Details Today_TR.xlsx')
+    customer_df = pd.read_excel('CQ_Detail_TODAY_TR.xlsx')
+    quote_df = pd.read_excel('quote_df.xlsx')
+    pn_master_df = pd.read_excel('pn_master.xlsx')
+    stock_df = pd.read_excel('stock_df_original.xlsx')
+    sales_df = pd.read_excel('sales_df.xlsx')
 
     return vendor_df, customer_df, quote_df, pn_master_df, stock_df, sales_df
 
@@ -78,7 +78,7 @@ quote_df['TIMESTAMP'] = quote_df['TIMESTAMP'].dt.date
 # --- NAVIGATION BAR --- #
 pages = ["Home", "Vendor & Customer Quotes", "List Analysis"]
 parent_dir = os.path.dirname(os.path.abspath(__file__))
-logo_path = os.path.join(parent_dir, "/Users/tadas/PycharmProjects/AJS/Design/Untitled design.svg")  # Update logo path
+logo_path = os.path.join(parent_dir, "Untitled design.svg")  # Update logo path
 
 styles = {
     "nav": {
