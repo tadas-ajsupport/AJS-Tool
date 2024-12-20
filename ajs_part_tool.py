@@ -105,7 +105,7 @@ convert_to_date(vendor_df, 'ENTRY_DATE')
 convert_to_date(customer_df, 'ENTRY_DATE')
 convert_to_date(sales_df, 'ENTRY_DATE')
 convert_to_date(purchases_df, 'ENTRY_DATE')
-# convert_to_date(stock_df, 'ENTRY_DATE')
+
 quote_df['Timestamp'] = pd.to_datetime(quote_df['Timestamp'])
 quote_df['Timestamp'] = quote_df['Timestamp'].dt.date
 
