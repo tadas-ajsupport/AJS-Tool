@@ -108,7 +108,7 @@ convert_to_date(purchases_df, 'ENTRY_DATE')
 
 # --- PAGE SETUP --- #
 # Navigation Bar
-pages = ["Home", "Part Information", "Sales Data", "List Analysis"]
+pages = ["Home", "Part Information", "List Analysis"]
 parent_dir = os.path.dirname(os.path.abspath(__file__))
 logo_path = os.path.join(parent_dir, "Untitled design.svg")  # Update logo path
 
@@ -490,21 +490,6 @@ elif page == "Part Information":
                     color='#91AC9A',
                     max_y_value=max_y_value
                 )
-
-# --- SALES DATA --- #
-elif page == "Sales Data":
-    st.subheader("Sale Data")
-    part_number = st.text_input("Search for Part Number (PN)", "")
-
-    # Only proceed if a part number is entered
-    if part_number:
-        # Apply filters to the sales data
-        filtered_sales_df = sales_df[
-            sales_df['PN'].str.contains(part_number, case=False, na=False)
-        ]
-
-        # Display the filtered sales data
-        st.dataframe(filtered_sales_df)
 
 # --- LIST ANALYSIS PAGE ---
 elif page == "List Analysis":
