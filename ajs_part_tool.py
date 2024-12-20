@@ -521,7 +521,6 @@ elif page == "List Analysis":
         df['Last Unit Price'] = df['PN'].apply(get_last_unit_price)
 
         # Merge with sales_df to include "Transaction" column
-        sales_df['ROUTE_DESC'] = sales_df['ROUTE_DESC'].fillna("Unknown")  # Handle missing transaction types
         merged_df = pd.merge(df, sales_df[['PN', 'ROUTE_DESC']], on='PN', how='left')
         merged_df.rename(columns={'ROUTE_DESC': 'Transaction'}, inplace=True)
 
