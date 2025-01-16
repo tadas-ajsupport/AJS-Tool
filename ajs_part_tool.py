@@ -698,6 +698,12 @@ elif page == "List Analysis":
                 total_unit_price = round(table_sales['Total Price'].sum())
                 total_unit_cost = round(table_sales['Total Cost'].sum())
 
+                # Check if the table is not empty and contains the required columns
+                if not table_customer.empty and 'W Avg Price' in table_customer.columns:
+                    total_w_avg_price = round(table_customer['W Avg Price'].sum())
+                else:
+                    total_w_avg_price = 0  # Default value when table is empty or column is missing
+                    
                 if not table_customer.empty and 'W Avg Cost' in table_customer.columns:
                     total_w_avg_cost = round(table_customer['W Avg Cost'].sum())
                 else:
