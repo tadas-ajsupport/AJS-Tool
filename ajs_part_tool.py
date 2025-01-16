@@ -654,6 +654,10 @@ elif page == "List Analysis":
                 table_no_sales_no_data = table_no_sales_no_data.drop_duplicates(subset=['PN'])
                 table_customer_price_zero = table_customer_price_zero.drop_duplicates(subset=['PN'])
 
+            # Replace negative values in Last Unit Price and Last Unit Cost with 0
+            table_sales.loc[table_sales['Last Unit Price'] < 0, 'Last Unit Price'] = 0
+            table_sales.loc[table_sales['Last Unit Cost'] < 0, 'Last Unit Cost'] = 0
+
             with col1:
                 st.write(f"Total Parts in List = {len(df)}")
                 st.dataframe(df.drop(columns=['Last Sale Date', 'Last Unit Cost', 'Last Unit Price']),
