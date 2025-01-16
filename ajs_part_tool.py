@@ -682,8 +682,18 @@ elif page == "List Analysis":
                     None  # Default to None if no column is found
                 )
 
-                # If no quantity column is found, set a default quantity of 1
-                if quantity_column is None:
+                # Clean and validate the quantity column
+                if quantity_column:
+                    # Extract numeric values from the quantity column
+                    table_sales[quantity_column] = (
+                        table_sales[quantity_column]
+                        .astype(str)  # Ensure the column is treated as strings
+                        .str.extract(r'(\d+)')  # Extract numeric values as strings
+                        .fillna(0)  # Replace missing values with 0
+                        .astype(int)  # Convert to integers
+                    )
+                else:
+                    # Set a default quantity if no column is found
                     st.warning("No quantity column found in the uploaded file. Defaulting all quantities to 1.")
                     table_sales['Quantity'] = 1
                     quantity_column = 'Quantity'
