@@ -676,15 +676,27 @@ elif page == "List Analysis":
                 st.dataframe(table_customer, height=210, width=780, hide_index=True, use_container_width=True)
 
             with col3:
+                # Detect the quantity column from the uploaded file
+                quantity_column = next(
+                    (col for col in ['QTY', 'Qty', 'quantity', 'Quantity'] if col in table_sales.columns),
+                    None  # Default to None if no column is found
+                )
+
+                # If no quantity column is found, set a default quantity of 1
+                if quantity_column is None:
+                    st.warning("No quantity column found in the uploaded file. Defaulting all quantities to 1.")
+                    table_sales['Quantity'] = 1
+                    quantity_column = 'Quantity'
+
                 st.subheader("Data Analysis")
                 st.write("")
-                total_unit_price = round(table_sales['Last Unit Price'].sum())
-                total_unit_cost = round(table_sales['Last Unit Cost'].sum())
-                # Check if the table is not empty and contains the required columns
-                if not table_customer.empty and 'W Avg Price' in table_customer.columns:
-                    total_w_avg_price = round(table_customer['W Avg Price'].sum())
-                else:
-                    total_w_avg_price = 0  # Default value when table is empty or column is missing
+
+                # Calculate total unit price and cost based on quantity
+                table_sales['Total Price'] = table_sales['Last Unit Price'] * table_sales[quantity_column]
+                table_sales['Total Cost'] = table_sales['Last Unit Cost'] * table_sales[quantity_column]
+
+                total_unit_price = round(table_sales['Total Price'].sum())
+                total_unit_cost = round(table_sales['Total Cost'].sum())
 
                 if not table_customer.empty and 'W Avg Cost' in table_customer.columns:
                     total_w_avg_cost = round(table_customer['W Avg Cost'].sum())
