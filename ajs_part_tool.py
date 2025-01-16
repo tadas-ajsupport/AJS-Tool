@@ -14,21 +14,27 @@ st.set_page_config(page_title="AJS Part Tool", page_icon="🔧", layout="wide")
 
 # <editor-fold desc="# --- LOADING DATA FUNCTION --- #">
 # Loading Data Function
+def load_quote_data(file_path):
+    return pd.read_excel(file_path)
+
+file_path = '/Users/tadas/PycharmProjects/AJS/Importing Excel/email_scrape_results.xlsx'
+quote_df = load_quote_data(file_path)
+
 @st.cache_data
 def load_data():
     vendor_df = pd.read_excel('/Users/tadas/PycharmProjects/AJS/Data/VQ Details Today_TR.xlsx')
     customer_df = pd.read_excel('/Users/tadas/PycharmProjects/AJS/Data/CQ_Detail_TODAY_TR.xlsx')
-    quote_df = pd.read_excel('/Users/tadas/PycharmProjects/AJS/Data/quote_df.xlsx')
     pn_master_df = pd.read_excel('/Users/tadas/PycharmProjects/AJS/Data/pn_master.xlsx')
-    stock_df = pd.read_excel('/Users/tadas/PycharmProjects/AJS/Data/stock_df_original.xlsx')
+    stock_df = pd.read_excel('/Users/tadas/PycharmProjects/AJS/Data/STOCK_241017.xlsx')
     sales_df = pd.read_excel('/Users/tadas/PycharmProjects/AJS/Data/sales_df.xlsx')
     purchases_df = pd.read_excel('/Users/tadas/PycharmProjects/AJS/Data/POs_LIVE_TR.xlsx')
+    activity_df = pd.read_excel('/Users/tadas/PycharmProjects/AJS/Data/parts_activity.xlsx')
 
-    return vendor_df, customer_df, quote_df, pn_master_df, stock_df, sales_df, purchases_df
+    return vendor_df, customer_df, pn_master_df, stock_df, sales_df, purchases_df, activity_df
 
 
 # Executing Loading Data Function
-vendor_df, customer_df, quote_df, pn_master_df, stock_df, sales_df, purchases_df = load_data()
+vendor_df, customer_df, pn_master_df, stock_df, sales_df, purchases_df, activity_df = load_data()
 
 
 # </editor-fold>
@@ -125,7 +131,7 @@ quote_df['Timestamp'] = quote_df['Timestamp'].dt.date
 # Navigation Bar
 pages = ["Home", "Part Information", "List Analysis"]
 parent_dir = os.path.dirname(os.path.abspath(__file__))
-logo_path = os.path.join(parent_dir, "/Users/tadas/PycharmProjects/AJS/Design/Untitled design.svg")  # Update logo path
+logo_path = os.path.join(parent_dir, "/Users/tadas/PycharmProjects/AJS/Data/Untitled design.svg")  # Update logo path
 
 # Styling
 styles = {
@@ -180,15 +186,14 @@ if page == "Home":
         part_sort = st.text_input("Filter by PN", "")
 
 
-    @st.cache_data
     def filter_quote_data(customer_sort, part_sort):
         # Start with the full dataset
-        filtered_df = quote_df.copy()
+        filtered_df = quote_df
 
         # Apply filters
         if customer_sort:
             filtered_df = filtered_df[
-                filtered_df['Company_Name'].str.contains(customer_sort, case=False, na=False)
+                filtered_df['Company Name'].str.contains(customer_sort, case=False, na=False)
             ]
         if part_sort:
             filtered_df = filtered_df[
@@ -206,19 +211,35 @@ if page == "Home":
 
         # Ensure 'PN' and 'QTY' columns are of type string for processing
         filtered_quote_df['PN'] = filtered_quote_df['PN'].astype(str)
-        filtered_quote_df['QTY'] = filtered_quote_df['QTY'].astype(str)
+        filtered_quote_df['Quantity'] = filtered_quote_df['Quantity'].astype(str)
 
-        # Process rows with multiple part numbers
+        # Process rows with multiple part numbers and descriptions
         split_rows = []
         qt_counter = 1  # Initialize QT# counter
+
         for _, row in filtered_quote_df.iterrows():
-            row_df = pd.DataFrame([row])
-            row_df['QT#'] = qt_counter  # Assign QT# to the row
-            split_rows.append(row_df)
-            qt_counter += 1  # Increment QT# for the next quote
+            part_numbers = row['PN'].split(';')  # Split part numbers by semicolon
+            descriptions = row['Description'].split(';') if ';' in str(row['Description']) else [row[
+                                                                                                     'Description']] * len(
+                part_numbers)
+
+            # Ensure descriptions match the number of part numbers
+            descriptions = [desc.strip() for desc in descriptions]  # Clean whitespace
+            if len(descriptions) < len(part_numbers):
+                descriptions += [''] * (
+                            len(part_numbers) - len(descriptions))  # Fill missing descriptions with empty strings
+
+            for part_number, description in zip(part_numbers, descriptions):
+                part_number = part_number.strip()  # Remove any leading/trailing spaces
+                new_row = row.copy()  # Copy the original row
+                new_row['PN'] = part_number  # Assign the current part number
+                new_row['Description'] = description  # Assign the corresponding description
+                new_row['QT#'] = qt_counter  # Assign the same QT#
+                split_rows.append(new_row)  # Append the new row to the list
+            qt_counter += 1  # Increment QT# for the next group of quotes
 
         # Concatenate all rows back together
-        processed_df = pd.concat(split_rows, ignore_index=True)
+        processed_df = pd.DataFrame(split_rows)
 
         # Add "Stock" column
         processed_df['Stock'] = processed_df['PN'].apply(lambda x: '' if x in stock_df['PN'].values else ' ')
@@ -229,30 +250,13 @@ if page == "Home":
         processed_df['Last Unit Cost'] = processed_df['PN'].apply(get_last_unit_cost)
         processed_df['Last Unit Price'] = processed_df['PN'].apply(get_last_unit_price)
 
+        # Merge with activity_df to add the Activity Score
+        processed_df = pd.merge(processed_df, activity_df[['PN', 'Activity Score']], on='PN', how='left')
 
-        # Add "Pst 6M VQTs" and "Pst 6M CQTs" columns
-        def get_past_6m_vendor_quotes(part_number):
-            six_months_ago = pd.Timestamp.now() - pd.DateOffset(months=6)
-            matching_vendor_quotes = vendor_df[
-                (vendor_df['PN'] == part_number) &
-                (pd.to_datetime(vendor_df['ENTRY_DATE']) >= six_months_ago)
-                ]
-            return len(matching_vendor_quotes)
+        # Replace None or NaN with an empty string in the Activity Score column
+        processed_df['Activity Score'] = processed_df['Activity Score'].fillna('')
 
-
-        def get_past_6m_customer_quotes(part_number):
-            six_months_ago = pd.Timestamp.now() - pd.DateOffset(months=6)
-            matching_customer_quotes = customer_df[
-                (customer_df['PN'] == part_number) &
-                (pd.to_datetime(customer_df['ENTRY_DATE']) >= six_months_ago)
-                ]
-            return len(matching_customer_quotes)
-
-
-        processed_df['Pst 6M VQTs'] = processed_df['PN'].apply(get_past_6m_vendor_quotes)
-        processed_df['Pst 6M CQTs'] = processed_df['PN'].apply(get_past_6m_customer_quotes)
-
-        # Replace None or NaN with an empty string in relevant columns
+        # Replace None or NaN with an empty string in other relevant columns
         processed_df[['Last Unit Cost', 'Last Unit Price', 'Last Sale Date']] = processed_df[
             ['Last Unit Cost', 'Last Unit Price', 'Last Sale Date']].fillna('')
 
@@ -265,7 +269,6 @@ if page == "Home":
         columns = ['QT#'] + [col for col in processed_df.columns if col != 'QT#']
         processed_df = processed_df[columns]
 
-
         # Styling functions
         def color_cells(value):
             if value == '':
@@ -273,7 +276,6 @@ if page == "Home":
             elif value == ' ':
                 return 'background-color: #FF6961; color: white;'  # Red
             return ''
-
 
         # Dynamic height adjustment
         num_rows = len(processed_df)
@@ -284,13 +286,15 @@ if page == "Home":
             .applymap(color_cells, subset=['Stock', 'PN Master']) \
             .format({
             'Last Unit Cost': lambda x: f'{x:.2f}' if not pd.isna(x) and x != '' else '',
-            'Last Unit Price': lambda x: f'{x:.2f}' if not pd.isna(x) and x != '' else ''
+            'Last Unit Price': lambda x: f'{x:.2f}' if not pd.isna(x) and x != '' else '',
+            'Activity Score': lambda x: f'{x:.2f}' if isinstance(x, (float, int)) else ''  # Format numeric scores
         })
 
         # Display the dataframe without additional styling
-        st.dataframe(styled_df, hide_index=True, height=table_height)
+        st.dataframe(styled_df, hide_index=True, height=table_height - 5)
 
     else:
+        st.write(len(quote_df))
         st.write("No matching data found.")
 
 # --- PART INFO & ANALYSIS --- #
@@ -299,6 +303,7 @@ elif page == "Part Information":
     vendor_df = vendor_df[vendor_df['UNIT_COST'] != 0]
     customer_df = customer_df[customer_df['UNIT_PRICE'] != 0]
     purchases_df = purchases_df[purchases_df['TOTAL_COST'] != 0]
+    sales_df = sales_df[sales_df['COST'] != 0]
 
     st.subheader("Vendor & Customer Quotes")
 
@@ -321,21 +326,11 @@ elif page == "Part Information":
     if part_number:
         # <editor-fold desc="# --- FILTERS --- #">
         # Apply filters to the data
-        filtered_vendor_df = vendor_df[
-            vendor_df['PN'].str.contains(part_number, case=False, na=False)
-        ]
-        filtered_customer_df = customer_df[
-            customer_df['PN'].str.contains(part_number, case=False, na=False)
-        ]
-        filtered_sales_df = sales_df[
-            sales_df['PN'].str.contains(part_number, case=False, na=False)
-        ]
-        filtered_purchases_df = purchases_df[
-            purchases_df['PN'].str.contains(part_number, case=False, na=False)
-        ]
-        filtered_stock_df = stock_df[
-            stock_df['PN'].str.contains(part_number, case=False, na=False)
-        ]
+        filtered_vendor_df = vendor_df[vendor_df['PN'].str.strip().str.upper() == part_number.strip().upper()]
+        filtered_customer_df = customer_df[customer_df['PN'].str.strip().str.upper() == part_number.strip().upper()]
+        filtered_sales_df = sales_df[sales_df['PN'].str.strip().str.upper() == part_number.strip().upper()]
+        filtered_purchases_df = purchases_df[purchases_df['PN'].str.strip().str.upper() == part_number.strip().upper()]
+        filtered_stock_df = stock_df[stock_df['PN'].str.strip().str.upper() == part_number.strip().upper()]
 
         if condition_code:
             filtered_vendor_df = filtered_vendor_df[
@@ -405,6 +400,10 @@ elif page == "Part Information":
             description = pn_master_df.loc[pn_master_df['PN'] == part_number, 'DESCRIPTION'].values[0] \
                 if part_number in pn_master_df['PN'].values else "No description available"
 
+            # Get the activity score for the current part number
+            activity_score = activity_df.loc[activity_df['PN'] == part_number, 'Activity Score'].values
+            activity_score = activity_score[0] if len(activity_score) > 0 else None
+
             # Update the summary dataframe to include sales information
             summary_df = pd.DataFrame({
                 "Description": [description],
@@ -418,7 +417,8 @@ elif page == "Part Information":
                 "Customer Qty": [customer_qty],
                 "Last Sale Date": [last_sale_date],
                 "Last Unit Cost": [last_unit_cost],
-                "Last Unit Price": [last_unit_price]
+                "Last Unit Price": [last_unit_price],
+                "Activity Score": [activity_score]
             })
 
             # Display the summary dataframe
@@ -434,22 +434,22 @@ elif page == "Part Information":
 
             with col_vendor_customer:
                 st.write("**Vendor Data**")
-                st.dataframe(filtered_vendor_df.drop(columns=['PN', 'DESCRIPTION', 'Weight']), height=215, width=780,
+                st.dataframe(filtered_vendor_df.drop(columns=['PN', 'DESCRIPTION']), height=210, width=780,
                              hide_index=True, use_container_width=True)
                 st.write("**Customer Data**")
-                st.dataframe(filtered_customer_df.drop(columns=['PN', 'DESCRIPTION', 'Weight']), height=215, width=780,
+                st.dataframe(filtered_customer_df.drop(columns=['PN', 'DESCRIPTION']), height=210, width=780,
                              hide_index=True, use_container_width=True)
 
             with col_sales_purchase:
                 st.write("**Sales Data**")
-                st.dataframe(filtered_sales_df.drop(columns=['PN', 'DESCRIPTION']), height=215, width=780,
+                st.dataframe(filtered_sales_df.drop(columns=['PN', 'DESCRIPTION']), height=210, width=780,
                              hide_index=True, use_container_width=True)
                 st.write("**Purchases Data**")
-                st.dataframe(filtered_purchases_df.drop(columns=['PN', 'DESCRIPTION']), height=215, width=780,
+                st.dataframe(filtered_purchases_df.drop(columns=['PN', 'DESCRIPTION']), height=210, width=780,
                              hide_index=True, use_container_width=True)
             with col_stock:
                 st.write("**Stock Data**")
-                st.dataframe(filtered_stock_df.drop(columns=['PN', 'DESCRIPTION']), height=215, width=780,
+                st.dataframe(filtered_stock_df.drop(columns=['PN', 'DESCRIPTION']), height=210, width=780,
                              hide_index=True, use_container_width=True)
 
         # Add content to Tab 2
@@ -508,173 +508,231 @@ elif page == "Part Information":
 
 # --- LIST ANALYSIS PAGE ---
 elif page == "List Analysis":
+
+    if "uploaded_file" not in st.session_state:
+        st.session_state["uploaded_file"] = None
+
+    if "analysis_results" not in st.session_state:
+        st.session_state["analysis_results"] = None
+
     col1, col2, col3 = st.columns(3)
+
     with col1:
         st.subheader("List Analysis")
+
+        # File uploader
         uploaded_file = st.file_uploader("Upload an Excel file for List Analysis", type=["xlsx"])
 
-    # Check if a file has been uploaded
-    if uploaded_file is not None:
-        df = pd.read_excel(uploaded_file, engine="openpyxl")
-        df['Last Sale Date'] = df['PN'].apply(get_last_sale_date)
-        df['Last Unit Cost'] = df['PN'].apply(get_last_unit_cost)
-        df['Last Unit Price'] = df['PN'].apply(get_last_unit_price)
+        # If a new file is uploaded, store it in session state and reset the analysis
+        if uploaded_file:
+            if st.session_state["uploaded_file"] != uploaded_file:
+                st.session_state["uploaded_file"] = uploaded_file
+                st.session_state["analysis_results"] = None  # Reset analysis results for new file
 
-        # Merge with sales_df to include "Transaction" column
-        sales_df['ROUTE_DESC'] = sales_df['ROUTE_DESC'].fillna("Unknown")  # Handle missing transaction types
-        merged_df = pd.merge(df, sales_df[['PN', 'ROUTE_DESC']], on='PN', how='left')
-        merged_df.rename(columns={'ROUTE_DESC': 'Transaction'}, inplace=True)
+        # Check if a file is present in session state
+        if st.session_state["uploaded_file"]:
+            if st.session_state["analysis_results"] is None:
+                # Initialize empty tables to avoid NameErrors
+                table_customer_price_zero = pd.DataFrame()
+                table_stock = pd.DataFrame()
+                table_sales = pd.DataFrame()
+                table_customer = pd.DataFrame()
+                table_no_sales_no_data = pd.DataFrame()
 
-        # Initialize separate tables
-        table_stock = pd.DataFrame(columns=merged_df.columns)
-        table_sales = pd.DataFrame(columns=merged_df.columns)
-        table_customer = pd.DataFrame(columns=merged_df.columns)
-        table_no_sales_no_data = pd.DataFrame(columns=merged_df.columns)
-        table_customer_price_zero = pd.DataFrame(columns=merged_df.columns)
+                # Perform the analysis only if it hasn't been done already
+                try:
+                    df = pd.read_excel(st.session_state["uploaded_file"], engine="openpyxl")
+                except Exception as e:
+                    st.error(f"An error occurred while reading the uploaded file: {e}")
+                    st.stop()
 
-        # Function to calculate weighted average, excluding exchanges
-        def calculate_weighted_avg(part_number, column):
-            """
-            Calculate the weighted average for the given column in customer_df,
-            excluding exchange quotes.
-            """
-            matching_data = customer_df[customer_df['PN'] == part_number].copy()
+                # Perform the analysis
+                df = pd.merge(df, activity_df[['PN', 'Activity Score']], on='PN', how='left')
+                df['Last Sale Date'] = df['PN'].apply(get_last_sale_date)
+                df['Last Unit Cost'] = df['PN'].apply(get_last_unit_cost)
+                df['Last Unit Price'] = df['PN'].apply(get_last_unit_price)
 
-            if matching_data.empty:
-                return 0, False  # Return 0 and indicate no valid data if empty
+                sales_df['ROUTE_DESC'] = sales_df['ROUTE_DESC'].fillna("Unknown")  # Handle missing transaction types
+                merged_df = pd.merge(df, sales_df[['PN', 'ROUTE_DESC']], on='PN', how='left')
+                merged_df.rename(columns={'ROUTE_DESC': 'Transaction'}, inplace=True)
 
-            # Ensure ENTRY_DATE is datetime
-            matching_data['ENTRY_DATE'] = pd.to_datetime(matching_data['ENTRY_DATE'], errors='coerce')
+                # Initialize and populate tables
+                table_stock = pd.DataFrame(columns=merged_df.columns)
+                table_sales = pd.DataFrame(columns=merged_df.columns)
+                table_customer = pd.DataFrame(columns=merged_df.columns)
+                table_no_sales_no_data = pd.DataFrame(columns=merged_df.columns)
+                table_customer_price_zero = pd.DataFrame(columns=merged_df.columns)
 
-            # Identify exchanges as rows where the price is significantly lower than the cost
-            exchange_threshold = 0.5  # 50% difference
-            matching_data = matching_data[
-                ~(matching_data['UNIT_PRICE'] < matching_data['UNIT_COST'] * exchange_threshold)
-            ]
+                # Reorder columns to make "Activity Score" the first column
+                table_stock = table_stock[
+                    ["Activity Score"] + [col for col in table_stock.columns if col != "Activity Score"]]
+                table_sales = table_sales[
+                    ["Activity Score"] + [col for col in table_sales.columns if col != "Activity Score"]]
+                table_customer = table_customer[
+                    ["Activity Score"] + [col for col in table_customer.columns if col != "Activity Score"]]
+                table_no_sales_no_data = table_no_sales_no_data[
+                    ["Activity Score"] + [col for col in table_no_sales_no_data.columns if col != "Activity Score"]]
+                table_customer_price_zero = table_customer_price_zero[
+                    ["Activity Score"] + [col for col in table_customer_price_zero.columns if col != "Activity Score"]]
 
-            if matching_data.empty:
-                return 0, True  # Return 0 and indicate only exchange data
+                def calculate_weighted_avg(part_number, column):
+                    matching_data = customer_df[customer_df['PN'] == part_number].copy()
+                    if matching_data.empty:
+                        return 0, False
 
-            # Define weights based on recency
-            today = pd.Timestamp.today()
-            four_years_ago = today - pd.DateOffset(years=4)
-            matching_data['Weight'] = (today - matching_data['ENTRY_DATE']).dt.days.apply(
-                lambda x: 1 / max((x - (four_years_ago - today).days), 1)
-            )
+                    matching_data['ENTRY_DATE'] = pd.to_datetime(matching_data['ENTRY_DATE'], errors='coerce')
+                    exchange_threshold = 0.5
+                    matching_data = matching_data[
+                        ~(matching_data['UNIT_PRICE'] < matching_data['UNIT_COST'] * exchange_threshold)
+                    ]
 
-            # Calculate weighted average
-            weighted_avg = (matching_data[column] * matching_data['Weight']).sum() / matching_data['Weight'].sum()
-            return round(weighted_avg, 2), False
+                    if matching_data.empty:
+                        return 0, True
 
-        # Separate rows into respective tables
-        for _, row in merged_df.iterrows():
-            if row['PN'] in stock_df['PN'].values:  # Check if part is in stock
-                table_stock = pd.concat([table_stock, row.to_frame().T], ignore_index=True)
-            elif pd.isna(row['Last Sale Date']):  # No sale data
-                # Check if part exists in customer_df
-                if row['PN'] in customer_df['PN'].values:
-                    w_avg_price, only_exchange = calculate_weighted_avg(row['PN'], 'UNIT_PRICE')
-                    w_avg_cost, _ = calculate_weighted_avg(row['PN'], 'UNIT_COST')
-                    # If the weighted average unit price is 0 or only exchange data
-                    if w_avg_price == 0 or only_exchange:
-                        row['W Avg Price'] = w_avg_price
-                        row['W Avg Cost'] = w_avg_cost
-                        table_customer_price_zero = pd.concat([table_customer_price_zero, row.to_frame().T],
-                                                              ignore_index=True)
-                    else:  # Otherwise, add to the customer table
-                        row['W Avg Price'] = w_avg_price
-                        row['W Avg Cost'] = w_avg_cost
-                        table_customer = pd.concat([table_customer, row.to_frame().T], ignore_index=True)
-                elif row['PN'] not in vendor_df['PN'].values and row['PN'] not in customer_df['PN'].values:
-                    table_no_sales_no_data = pd.concat([table_no_sales_no_data, row.to_frame().T], ignore_index=True)
-            else:
-                table_sales = pd.concat([table_sales, row.to_frame().T], ignore_index=True)
+                    today = pd.Timestamp.today()
+                    four_years_ago = today - pd.DateOffset(years=4)
+                    matching_data['Weight'] = (today - matching_data['ENTRY_DATE']).dt.days.apply(
+                        lambda x: 1 / max((x - (four_years_ago - today).days), 1)
+                    )
 
-        with col1:
-            st.write(f"Total Parts in List = {len(df)}")
-            st.dataframe(df.drop(columns=['Last Sale Date', 'Last Unit Cost', 'Last Unit Price']),
-                         height=305, width=780, hide_index=True, use_container_width=True)
+                    weighted_avg = (matching_data[column] * matching_data['Weight']).sum() / matching_data['Weight'].sum()
+                    return round(weighted_avg, 2), False
 
-        # <editor-fold desc="# --- TABLES DISPLAY --- #">
-        with col2:
-            st.subheader(f"Data Used For Analysis = {len(table_sales) + len(table_customer)}")
+                for _, row in merged_df.iterrows():
+                    if row['PN'] in stock_df['PN'].values:
+                        table_stock = pd.concat([table_stock, row.to_frame().T], ignore_index=True)
+                    elif pd.isna(row['Last Sale Date']):
+                        if row['PN'] in customer_df['PN'].values:
+                            w_avg_price, only_exchange = calculate_weighted_avg(row['PN'], 'UNIT_PRICE')
+                            w_avg_cost, _ = calculate_weighted_avg(row['PN'], 'UNIT_COST')
+                            if w_avg_price == 0 or only_exchange:
+                                row['W Avg Price'] = w_avg_price
+                                row['W Avg Cost'] = w_avg_cost
+                                table_customer_price_zero = pd.concat([table_customer_price_zero, row.to_frame().T],
+                                                                      ignore_index=True)
+                            else:
+                                row['W Avg Price'] = w_avg_price
+                                row['W Avg Cost'] = w_avg_cost
+                                table_customer = pd.concat([table_customer, row.to_frame().T], ignore_index=True)
+                        elif row['PN'] not in vendor_df['PN'].values and row['PN'] not in customer_df['PN'].values:
+                            table_no_sales_no_data = pd.concat([table_no_sales_no_data, row.to_frame().T], ignore_index=True)
+                    else:
+                        table_sales = pd.concat([table_sales, row.to_frame().T], ignore_index=True)
 
-            # Display Parts with Sale Data
-            st.write(f"**Parts with Sale Data:** {len(table_sales)} Parts")
-            table_sales = table_sales.drop(columns='Transaction')
-            st.dataframe(table_sales, height=210, hide_index=True, use_container_width=True)  # Use container width
+                st.session_state["analysis_results"] = {
+                    "df": df,
+                    "table_stock": table_stock,
+                    "table_sales": table_sales,
+                    "table_customer": table_customer,
+                    "table_no_sales_no_data": table_no_sales_no_data,
+                    "table_customer_price_zero": table_customer_price_zero,
+                }
 
-            # Display Parts with Customer Data
-            st.write(f"**Parts with Customer Data:** {len(table_customer)} Parts")
-            table_customer = table_customer.drop(
-                columns=['Last Sale Date', 'Last Unit Cost', 'Last Unit Price', 'Transaction'], errors='ignore')
-            st.dataframe(table_customer, height=210, hide_index=True, use_container_width=True)  # Use container width
-        with col3:
-            st.subheader("Data Analysis")
-            st.write("")
-            # Calculate totals for table_sales
-            total_unit_price = round(table_sales['Last Unit Price'].sum())
-            total_unit_cost = round(table_sales['Last Unit Cost'].sum())
+            analysis_results = st.session_state["analysis_results"]
+            df = analysis_results["df"]
+            table_stock = analysis_results["table_stock"]
+            table_sales = analysis_results["table_sales"]
+            table_customer = analysis_results["table_customer"]
+            table_no_sales_no_data = analysis_results["table_no_sales_no_data"]
+            table_customer_price_zero = analysis_results["table_customer_price_zero"]
 
-            # Calculate totals for table_customer (W Avg Price and W Avg Cost)
-            total_w_avg_price = round(table_customer['W Avg Price'].sum())
-            total_w_avg_cost = round(table_customer['W Avg Cost'].sum())
-
-            potential_profit = (total_unit_price - total_unit_cost) + (total_w_avg_price - total_w_avg_cost)
-
-            st.write("**Parts with Sale Data**")
-            col1, col2 = st.columns(2)
             with col1:
-                st.write(f"Sum Unit Price:")
-                st.write(f"Sum Unit Cost:")
+                st.write(f"Total Parts in List = {len(df)}")
+                st.dataframe(df.drop(columns=['Last Sale Date', 'Last Unit Cost', 'Last Unit Price']),
+                             height=305, width=780, hide_index=True, use_container_width=True)
+
             with col2:
-                st.write(f"{total_unit_price}")
-                st.write(f"{total_unit_cost}")
-            st.markdown("---")
+                st.subheader(f"Data Used For Analysis = {len(table_sales) + len(table_customer)}")
 
-            st.write("**Parts with Customer Data**")
-            col1, col2 = st.columns(2)
-            with col1:
-                st.write(f"Sum Unit Price:")
-                st.write(f"Sum Unit Cost:")
-            with col2:
-                st.write(f"{total_w_avg_price}")
-                st.write(f"{total_w_avg_cost}")
-            st.markdown("---")
+                st.write(f"**Parts with Sale Data:** {len(table_sales)} Parts")
+                table_sales = table_sales.drop(columns='Transaction')
+                st.dataframe(table_sales, height=210, width=780, hide_index=True, use_container_width=True)
 
-            st.write("**Potential Profit**")
-            col1, col2 = st.columns(2)
-            with col1:
-                st.write(f"Potential Profit Range:")
-            with col2:
-                st.write(f"{potential_profit}")
+                st.write(f"**Parts with Customer Data:** {len(table_customer)} Parts")
+                table_customer = table_customer.drop(
+                    columns=['Last Sale Date', 'Last Unit Cost', 'Last Unit Price', 'Transaction'], errors='ignore')
+                st.dataframe(table_customer, height=210, width=780, hide_index=True, use_container_width=True)
 
-        st.markdown("---")
+            with col3:
+                st.subheader("Data Analysis")
+                st.write("")
+                total_unit_price = round(table_sales['Last Unit Price'].sum())
+                total_unit_cost = round(table_sales['Last Unit Cost'].sum())
+                total_w_avg_price = round(table_customer['W Avg Price'].sum())
+                total_w_avg_cost = round(table_customer['W Avg Cost'].sum())
+                potential_profit = (total_unit_price - total_unit_cost) + (total_w_avg_price - total_w_avg_cost)
 
-        st.subheader(
-            f"Data Not Used For Analysis = "
-            f"{len(table_customer_price_zero) + len(table_stock) + len(table_no_sales_no_data)}")
+                st.write("**Parts with Sale Data**")
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.write(f"Sum Unit Price:")
+                    st.write(f"Sum Unit Cost:")
+                with col2:
+                    st.write(f"{total_unit_price}")
+                    st.write(f"{total_unit_cost}")
+                st.markdown("---")
 
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.write(
-                f"**PN w/o Sale Data & w/ Customer Data w/ Unit Price = 0**: "
-                f"{len(table_customer_price_zero)} Parts")
-            table_customer_price_zero = table_customer_price_zero.drop(
-                columns=['Last Sale Date', 'Last Unit Cost', 'Last Unit Price', 'Transaction'], errors='ignore')
-            st.dataframe(table_customer_price_zero, height=420, width=780,
-                         hide_index=True, use_container_width=True)
-        with col2:
-            st.write(
-                f"**PN w/o Sale Data or Customer/Vendor Data: {len(table_no_sales_no_data)} Parts**")
-            table_no_sales_no_data = table_no_sales_no_data.drop(
-                columns=['Last Sale Date', 'Last Unit Cost', 'Last Unit Price', 'Transaction'], errors='ignore')
-            st.dataframe(table_no_sales_no_data, height=420, width=780,
-                         hide_index=True, use_container_width=True)
-        with col3:
-            st.write(f"**PN Already in Stock: {len(table_stock)} Parts**")
-            table_stock = table_stock.drop(
-                columns=['Last Sale Date', 'Last Unit Cost', 'Last Unit Price', 'Transaction'], errors='ignore')
-            st.dataframe(table_stock, height=420, width=780,
-                         hide_index=True, use_container_width=True)
-        # </editor-fold>
+                st.write("**Parts with Customer Data**")
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.write(f"Sum Unit Price:")
+                    st.write(f"Sum Unit Cost:")
+                with col2:
+                    st.write(f"{total_w_avg_price}")
+                    st.write(f"{total_w_avg_cost}")
+                st.markdown("---")
+
+                st.write("**Potential Profit**")
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.write(f"Potential Profit Range:")
+                    st.write("List's Activity Score:")
+                with col2:
+                    st.write(f"{potential_profit}")
+
+                    total_activity_sum = table_sales['Activity Score'].sum() + table_customer['Activity Score'].sum()
+                    total_count = len(table_sales['Activity Score']) + len(table_customer['Activity Score'])
+                    average_activity_score = round(total_activity_sum / total_count, 2)
+                    st.write(f"{average_activity_score}")
+        else:
+            # Ensure empty tables are initialized to avoid errors when displaying results
+            table_customer_price_zero = pd.DataFrame()
+            table_stock = pd.DataFrame()
+            table_sales = pd.DataFrame()
+            table_customer = pd.DataFrame()
+            table_no_sales_no_data = pd.DataFrame()
+
+            st.warning("Please upload an Excel file to perform the analysis.")
+
+    st.markdown("---")
+    st.subheader(
+        f"Data Not Used For Analysis = "
+        f"{len(table_customer_price_zero) + len(table_stock) + len(table_no_sales_no_data)}"
+    )
+
+    # Create three columns for the tables
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.write(
+            f"**PN w/o Sale Data & w/ Customer Data w/ Unit Price = 0**: "
+            f"{len(table_customer_price_zero)} Parts"
+        )
+        table_customer_price_zero = table_customer_price_zero.drop(
+            columns=['Last Sale Date', 'Last Unit Cost', 'Last Unit Price', 'Transaction'], errors='ignore')
+        st.dataframe(table_customer_price_zero, height=420, hide_index=True)
+
+    with col2:
+        st.write(
+            f"**PN w/o Sale Data or Customer/Vendor Data: {len(table_no_sales_no_data)} Parts**"
+        )
+        table_no_sales_no_data = table_no_sales_no_data.drop(
+            columns=['Last Sale Date', 'Last Unit Cost', 'Last Unit Price', 'Transaction'], errors='ignore')
+        st.dataframe(table_no_sales_no_data, height=420, hide_index=True)
+
+    with col3:
+        st.write(f"**PN Already in Stock: {len(table_stock)} Parts**")
+        table_stock = table_stock.drop(
+            columns=['Last Sale Date', 'Last Unit Cost', 'Last Unit Price', 'Transaction'], errors='ignore')
+        st.dataframe(table_stock, height=420, hide_index=True)
+
