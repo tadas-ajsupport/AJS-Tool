@@ -546,6 +546,11 @@ elif page == "List Analysis":
                     st.error(f"An error occurred while reading the uploaded file: {e}")
                     st.stop()
 
+                if 'SN' in df.columns:
+                    has_sn_column = True
+                else:
+                    has_sn_column = False
+
                 # Perform the analysis
                 df = pd.merge(df, activity_df[['PN', 'Activity Score']], on='PN', how='left')
                 df['Last Sale Date'] = df['PN'].apply(get_last_sale_date)
@@ -636,6 +641,19 @@ elif page == "List Analysis":
             table_no_sales_no_data = analysis_results["table_no_sales_no_data"]
             table_customer_price_zero = analysis_results["table_customer_price_zero"]
 
+            if has_sn_column:
+                table_stock = table_stock.drop_duplicates(subset=['PN', 'SN'])
+                table_sales = table_sales.drop_duplicates(subset=['PN', 'SN'])
+                table_customer = table_customer.drop_duplicates(subset=['PN', 'SN'])
+                table_no_sales_no_data = table_no_sales_no_data.drop_duplicates(subset=['PN', 'SN'])
+                table_customer_price_zero = table_customer_price_zero.drop_duplicates(subset=['PN', 'SN'])
+            else:
+                table_stock = table_stock.drop_duplicates(subset=['PN'])
+                table_sales = table_sales.drop_duplicates(subset=['PN'])
+                table_customer = table_customer.drop_duplicates(subset=['PN'])
+                table_no_sales_no_data = table_no_sales_no_data.drop_duplicates(subset=['PN'])
+                table_customer_price_zero = table_customer_price_zero.drop_duplicates(subset=['PN'])
+
             with col1:
                 st.write(f"Total Parts in List = {len(df)}")
                 st.dataframe(df.drop(columns=['Last Sale Date', 'Last Unit Cost', 'Last Unit Price']),
@@ -644,11 +662,11 @@ elif page == "List Analysis":
             with col2:
                 st.subheader(f"Data Used For Analysis = {len(table_sales) + len(table_customer)}")
 
-                st.write(f"**Parts with Sale Data:** {len(table_sales)} Parts")
+                st.write(f"**with SO Data:** {len(table_sales)} Parts")
                 table_sales = table_sales.drop(columns='Transaction')
                 st.dataframe(table_sales, height=210, width=780, hide_index=True, use_container_width=True)
 
-                st.write(f"**Parts with Customer Data:** {len(table_customer)} Parts")
+                st.write(f"**with CQ Data Only:** {len(table_customer)} Parts")
                 table_customer = table_customer.drop(
                     columns=['Last Sale Date', 'Last Unit Cost', 'Last Unit Price', 'Transaction'], errors='ignore')
                 st.dataframe(table_customer, height=210, width=780, hide_index=True, use_container_width=True)
@@ -658,11 +676,20 @@ elif page == "List Analysis":
                 st.write("")
                 total_unit_price = round(table_sales['Last Unit Price'].sum())
                 total_unit_cost = round(table_sales['Last Unit Cost'].sum())
-                total_w_avg_price = round(table_customer['W Avg Price'].sum())
-                total_w_avg_cost = round(table_customer['W Avg Cost'].sum())
+                # Check if the table is not empty and contains the required columns
+                if not table_customer.empty and 'W Avg Price' in table_customer.columns:
+                    total_w_avg_price = round(table_customer['W Avg Price'].sum())
+                else:
+                    total_w_avg_price = 0  # Default value when table is empty or column is missing
+
+                if not table_customer.empty and 'W Avg Cost' in table_customer.columns:
+                    total_w_avg_cost = round(table_customer['W Avg Cost'].sum())
+                else:
+                    total_w_avg_cost = 0  # Default value when table is empty or column is missing
+
                 potential_profit = (total_unit_price - total_unit_cost) + (total_w_avg_price - total_w_avg_cost)
 
-                st.write("**Parts with Sale Data**")
+                st.write("**with SO Data**")
                 col1, col2 = st.columns(2)
                 with col1:
                     st.write(f"Sum Unit Price:")
@@ -672,7 +699,7 @@ elif page == "List Analysis":
                     st.write(f"{total_unit_cost}")
                 st.markdown("---")
 
-                st.write("**Parts with Customer Data**")
+                st.write("**with CQ Data Only**")
                 col1, col2 = st.columns(2)
                 with col1:
                     st.write(f"Sum Unit Price:")
@@ -690,10 +717,29 @@ elif page == "List Analysis":
                 with col2:
                     st.write(f"{potential_profit}")
 
+                    # Replace activity scores "<1" with a numeric value of 0.5 for proper calculation
+                    def preprocess_activity_scores(df, column):
+                        df[column] = df[column].apply(
+                            lambda x: 0.5 if isinstance(x, str) and x.strip() == "<1" else x
+                        )
+                        df[column] = pd.to_numeric(df[column], errors='coerce').fillna(0)
+
+                    # Apply preprocessing to ensure all activity scores are numeric
+                    preprocess_activity_scores(table_sales, 'Activity Score')
+                    preprocess_activity_scores(table_customer, 'Activity Score')
+
+                    # Calculate total activity score and count
                     total_activity_sum = table_sales['Activity Score'].sum() + table_customer['Activity Score'].sum()
                     total_count = len(table_sales['Activity Score']) + len(table_customer['Activity Score'])
-                    average_activity_score = round(total_activity_sum / total_count, 2)
+
+                    # Prevent division by zero
+                    if total_count > 0:
+                        average_activity_score = round(total_activity_sum / total_count, 2)
+                    else:
+                        average_activity_score = 0  # Default value when there are no activity scores
+
                     st.write(f"{average_activity_score}")
+
         else:
             # Ensure empty tables are initialized to avoid errors when displaying results
             table_customer_price_zero = pd.DataFrame()
@@ -715,7 +761,7 @@ elif page == "List Analysis":
 
     with col1:
         st.write(
-            f"**PN w/o Sale Data & w/ Customer Data w/ Unit Price = 0**: "
+            f"**with CQ Data only of Unit Price = 0**: "
             f"{len(table_customer_price_zero)} Parts"
         )
         table_customer_price_zero = table_customer_price_zero.drop(
@@ -724,15 +770,16 @@ elif page == "List Analysis":
 
     with col2:
         st.write(
-            f"**PN w/o Sale Data or Customer/Vendor Data: {len(table_no_sales_no_data)} Parts**"
+            f"**without SO or CQ/VQ Data: {len(table_no_sales_no_data)} Parts**"
         )
         table_no_sales_no_data = table_no_sales_no_data.drop(
             columns=['Last Sale Date', 'Last Unit Cost', 'Last Unit Price', 'Transaction'], errors='ignore')
         st.dataframe(table_no_sales_no_data, height=420, hide_index=True)
 
     with col3:
-        st.write(f"**PN Already in Stock: {len(table_stock)} Parts**")
+        st.write(f"**Already in Stock: {len(table_stock)} Parts**")
         table_stock = table_stock.drop(
             columns=['Last Sale Date', 'Last Unit Cost', 'Last Unit Price', 'Transaction'], errors='ignore')
         st.dataframe(table_stock, height=420, hide_index=True)
+
 
