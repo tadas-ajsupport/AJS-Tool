@@ -17,18 +17,18 @@ st.set_page_config(page_title="AJS Part Tool", page_icon="🔧", layout="wide")
 def load_quote_data(file_path):
     return pd.read_excel(file_path)
 
-file_path = '/Users/tadas/PycharmProjects/AJS/Importing Excel/email_scrape_results.xlsx'
+file_path = 'email_scrape_results.xlsx'
 quote_df = load_quote_data(file_path)
 
 @st.cache_data
 def load_data():
-    vendor_df = pd.read_excel('/Users/tadas/PycharmProjects/AJS/Data/VQ Details Today_TR.xlsx')
-    customer_df = pd.read_excel('/Users/tadas/PycharmProjects/AJS/Data/CQ_Detail_TODAY_TR.xlsx')
-    pn_master_df = pd.read_excel('/Users/tadas/PycharmProjects/AJS/Data/pn_master.xlsx')
-    stock_df = pd.read_excel('/Users/tadas/PycharmProjects/AJS/Data/STOCK_241017.xlsx')
-    sales_df = pd.read_excel('/Users/tadas/PycharmProjects/AJS/Data/sales_df.xlsx')
-    purchases_df = pd.read_excel('/Users/tadas/PycharmProjects/AJS/Data/POs_LIVE_TR.xlsx')
-    activity_df = pd.read_excel('/Users/tadas/PycharmProjects/AJS/Data/parts_activity.xlsx')
+    vendor_df = pd.read_excel('VQ Details Today_TR.xlsx')
+    customer_df = pd.read_excel('CQ_Detail_TODAY_TR.xlsx')
+    pn_master_df = pd.read_excel('pn_master.xlsx')
+    stock_df = pd.read_excel('STOCK_241017.xlsx')
+    sales_df = pd.read_excel('sales_df.xlsx')
+    purchases_df = pd.read_excel('POs_LIVE_TR.xlsx')
+    activity_df = pd.read_excel('parts_activity.xlsx')
 
     return vendor_df, customer_df, pn_master_df, stock_df, sales_df, purchases_df, activity_df
 
