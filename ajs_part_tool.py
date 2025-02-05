@@ -134,7 +134,7 @@ quote_df['Timestamp'] = quote_df['Timestamp'].dt.date
 # Navigation Bar
 pages = ["Home", "Part Information", "List Analysis", "Vendor Quotes"]
 parent_dir = os.path.dirname(os.path.abspath(__file__))
-logo_path = os.path.join(parent_dir, "/Users/tadas/PycharmProjects/AJS/Data/Untitled design.svg")  # Update logo path
+logo_path = os.path.join(parent_dir, "Untitled design.svg")  # Update logo path
 
 # Styling
 styles = {
