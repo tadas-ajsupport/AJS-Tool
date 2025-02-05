@@ -5,10 +5,12 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from streamlit_navigation_bar import st_navbar
+from datetime import date
+import re
 
 # Initial Page Configuration --- #
 st.set_page_config(page_title="AJS Part Tool", page_icon="🔧", layout="wide")
-
+today = date.today()
 
 # </editor-fold>
 
@@ -17,8 +19,8 @@ st.set_page_config(page_title="AJS Part Tool", page_icon="🔧", layout="wide")
 def load_quote_data(file_path):
     return pd.read_excel(file_path)
 
-file_path = 'email_scrape_results.xlsx'
-quote_df = load_quote_data(file_path)
+quote_df = load_quote_data('email_scrape_results.xlsx')
+vq_details = load_quote_data('VQ_results.xlsx')
 
 @st.cache_data
 def load_data():
@@ -122,6 +124,7 @@ convert_to_date(vendor_df, 'ENTRY_DATE')
 convert_to_date(customer_df, 'ENTRY_DATE')
 convert_to_date(sales_df, 'ENTRY_DATE')
 convert_to_date(purchases_df, 'ENTRY_DATE')
+convert_to_date(vq_details, 'Timestamp')
 # convert_to_date(stock_df, 'ENTRY_DATE')
 quote_df['Timestamp'] = pd.to_datetime(quote_df['Timestamp'])
 quote_df['Timestamp'] = quote_df['Timestamp'].dt.date
@@ -129,9 +132,9 @@ quote_df['Timestamp'] = quote_df['Timestamp'].dt.date
 
 # <editor-fold desc="# --- PAGE SETUP --- #">
 # Navigation Bar
-pages = ["Home", "Part Information", "List Analysis"]
+pages = ["Home", "Part Information", "List Analysis", "Vendor Quotes"]
 parent_dir = os.path.dirname(os.path.abspath(__file__))
-logo_path = os.path.join(parent_dir, "Untitled design.svg")  # Update logo path
+logo_path = os.path.join(parent_dir, "/Users/tadas/PycharmProjects/AJS/Data/Untitled design.svg")  # Update logo path
 
 # Styling
 styles = {
@@ -713,7 +716,7 @@ elif page == "List Analysis":
                     total_w_avg_price = round(table_customer['W Avg Price'].sum())
                 else:
                     total_w_avg_price = 0  # Default value when table is empty or column is missing
-                    
+
                 if not table_customer.empty and 'W Avg Cost' in table_customer.columns:
                     total_w_avg_cost = round(table_customer['W Avg Cost'].sum())
                 else:
@@ -813,5 +816,76 @@ elif page == "List Analysis":
         table_stock = table_stock.drop(
             columns=['Last Sale Date', 'Last Unit Cost', 'Last Unit Price', 'Transaction'], errors='ignore')
         st.dataframe(table_stock, height=420, hide_index=True)
+
+# --- VENDOR QUOTE PAGE --- #
+elif page == "Vendor Quotes":
+    st.subheader(f"Vendor Quote Directory - {today}")
+
+    # Ensure the main DataFrame is stored in session state for persistence
+    if "vq_details" not in st.session_state:
+        st.session_state.vq_details = vq_details.copy()  # Store DataFrame in session state
+
+    # Function to expand rows based on "PN" column while maintaining column integrity
+    def expand_vendor_quote_data(df):
+        if "PN" not in df.columns:
+            return df  # Return original if "PN" column is missing
+
+        expanded_rows = []
+
+        for _, row in df.iterrows():
+            pn_values = str(row["PN"]).split("; ") if pd.notna(row["PN"]) and "; " in str(row["PN"]) else [row["PN"]]
+
+            # Identify other columns that might have multiple values
+            split_values = {
+                col: str(row[col]).split("; ") if pd.notna(row[col]) and "; " in str(row[col]) else [row[col]]
+                for col in df.columns if col != "PN"
+            }
+
+            max_length = max(len(pn_values), *[len(v) for v in split_values.values()])
+
+            # Ensure all columns have consistent row counts
+            for col in split_values:
+                if len(split_values[col]) == 1:
+                    split_values[col] *= max_length  # Repeat single values across new rows
+                else:
+                    split_values[col] += [""] * (max_length - len(split_values[col]))  # Pad shorter lists
+
+            # Create new rows
+            for i in range(len(pn_values)):
+                new_row = {col: split_values[col][i] if col != "PN" else pn_values[i] for col in df.columns}
+                expanded_rows.append(new_row)
+
+        return pd.DataFrame(expanded_rows)
+
+    # Filter search bar
+    part_sort = st.text_input("Filter by PN", "")
+
+    # Define the filtering logic
+    def filter_quote_data(part_sort):
+        if part_sort:
+            filtered_df = vq_details[vq_details['PN'].astype(str).str.contains(part_sort, case=False, na=False)]
+        else:
+            filtered_df = vq_details.copy()
+
+        st.session_state.vq_details = filtered_df  # Update session state with filtered data
+
+    # Apply the filter and update the session state
+    filter_quote_data(part_sort)
+
+    # UI toggle for row expansion
+    expand_rows = st.checkbox("Expand Rows")
+
+    # Apply expansion logic if checkbox is selected
+    if expand_rows:
+        st.session_state.vq_details = expand_vendor_quote_data(st.session_state.vq_details)
+
+    # Display the DataFrame
+    if not st.session_state.vq_details.empty:
+        st.dataframe(st.session_state.vq_details, hide_index=True)
+    else:
+        st.warning("No data matches the filter.")
+
+
+
 
 
