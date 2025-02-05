@@ -20,7 +20,7 @@ def load_quote_data(file_path):
     return pd.read_excel(file_path)
 
 quote_df = load_quote_data('email_scrape_results.xlsx')
-vq_details = load_quote_data('VQ_results.xlsx')
+vq_details = load_quote_data('VQ_results (live).xlsx')
 
 @st.cache_data
 def load_data():
