@@ -20,7 +20,7 @@ def load_quote_data(file_path):
     return pd.read_excel(file_path)
 
 quote_df = load_quote_data('email_scrape_results.xlsx')
-vq_details = load_quote_data('VQ_results (live).xlsx')
+vq_details = load_quote_data('Scraping Results.xlsx')
 
 @st.cache_data
 def load_data():
@@ -858,19 +858,30 @@ elif page == "Vendor Quotes":
         return pd.DataFrame(expanded_rows)
 
     # Filter search bar
-    part_sort = st.text_input("Filter by PN", "")
+    pn_sort_col, subj_sort_col = st.columns(2)
+    with pn_sort_col:
+        pn_filter = st.text_input("Filter by PN", "")
+    with subj_sort_col:
+        subj_filter = st.text_input("Filter by Subject", "")
 
     # Define the filtering logic
-    def filter_quote_data(part_sort):
-        if part_sort:
-            filtered_df = vq_details[vq_details['PN'].astype(str).str.contains(part_sort, case=False, na=False)]
-        else:
-            filtered_df = vq_details.copy()
+    def filter_quote_data(pn_filter, subj_filter):
+        filtered_df = vq_details.copy()
+
+        if pn_filter:
+            filtered_df = filtered_df[
+                filtered_df["PN"].astype(str).str.contains(pn_filter, case=False, na=False)
+            ]
+
+        if subj_filter:
+            filtered_df = filtered_df[
+                filtered_df["Subject"].astype(str).str.contains(subj_filter, case=False, na=False)
+            ]
 
         st.session_state.vq_details = filtered_df  # Update session state with filtered data
 
     # Apply the filter and update the session state
-    filter_quote_data(part_sort)
+    filter_quote_data(pn_filter, subj_filter)
 
     # UI toggle for row expansion
     expand_rows = st.checkbox("Expand Rows")
