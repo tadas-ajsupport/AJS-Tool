@@ -21,6 +21,8 @@ def load_quote_data(file_path):
 
 quote_df = load_quote_data('email_scrape_results.xlsx')
 vq_details = load_quote_data('Scraping Results.xlsx')
+score_df = pd.read_excel("sucess_score.xlsx")
+vq_details = vq_details.assign(Score=score_df["Score"])
 
 @st.cache_data
 def load_data():
@@ -37,10 +39,6 @@ def load_data():
 
 # Executing Loading Data Function
 vendor_df, customer_df, pn_master_df, stock_df, sales_df, purchases_df, activity_df = load_data()
-
-score_df = pd.read_excel("sucess_score.xlsx")
-vq_details = vq_details.merge(score_df[["VQ#", "Score"]], on="VQ#", how="left")
-vq_details["Score"] = vq_details["Score"].fillna(0)
 
 # </editor-fold>
 
