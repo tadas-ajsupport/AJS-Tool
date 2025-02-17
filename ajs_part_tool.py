@@ -825,6 +825,11 @@ elif page == "Vendor Quotes":
     if "vq_details" not in st.session_state:
         st.session_state.vq_details = vq_details.copy()  # Store DataFrame in session state
 
+    # Loading Manual Score
+    score_df = pd.read_excel("sucess_score.xlsx")
+    vq_details = vq_details.merge(score_df[["VQ#", "Score"]], on="PN", how="left")
+    vq_details["Score"] = vq_details["Score"].fillna(0)
+
     # Function to expand rows based on "PN" column while maintaining column integrity
     def expand_vendor_quote_data(df):
         if "PN" not in df.columns:
