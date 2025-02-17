@@ -826,7 +826,7 @@ elif page == "List Analysis":
 # Loading Manual Score
 elif page == "Vendor Quotes":
     st.subheader(f"Vendor Quote Directory - {today}")
-    desired_order = ["Score", "VQ#", "Timestamp", "PN", "DESCRIPTION", "Detected Conditions", "Detected Prices", "Detected Certs", "Detected Dates", "Detected Qty", "Matched Company", "Subject"]
+    desired_order = ["Score", "VQ#", "Timestamp", "PN", "DESCRIPTION", "Detected Conditions", "Detected Prices", "Detected Certs", "Detected Dates", "Detected Qty", "Matched Company", "Sender Email", "Subject"]
     vq_details = vq_details[desired_order]
 
     # Ensure the main DataFrame is stored in session state for persistence
