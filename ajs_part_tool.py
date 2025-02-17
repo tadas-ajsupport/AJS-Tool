@@ -827,7 +827,21 @@ elif page == "Vendor Quotes":
 
     # Loading Manual Score
     score_df = pd.read_excel("sucess_score.xlsx")
-    vq_details = vq_details.merge(score_df[["VQ#", "Score"]], on="VQ#", how="left")
+
+    # Strip spaces from column names to ensure they match exactly
+    vq_details.columns = vq_details.columns.str.strip()
+    score_df.columns = score_df.columns.str.strip()
+
+    # Check if "VQ#" and "Score" exist in both DataFrames
+    if "VQ#" in vq_details.columns and "VQ#" in score_df.columns and "Score" in score_df.columns:
+        # Merge on "VQ#" instead of "PN"
+        vq_details = vq_details.merge(score_df[["VQ#", "Score"]], on="VQ#", how="left")
+
+        # Fill missing scores with 0
+        vq_details["Score"] = vq_details["Score"].fillna(0)
+    else:
+        st.error("Column mismatch: Ensure 'VQ#' and 'Score' exist in both data sources.")
+
     vq_details["Score"] = vq_details["Score"].fillna(0)
 
     # Function to expand rows based on "PN" column while maintaining column integrity
