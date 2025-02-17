@@ -22,7 +22,6 @@ def load_quote_data(file_path):
 quote_df = load_quote_data('email_scrape_results.xlsx')
 vq_details = load_quote_data('Scraping Results.xlsx')
 score_df = pd.read_excel("sucess_score.xlsx")
-vq_details = vq_details.assign(Score=score_df["Score"])
 
 @st.cache_data
 def load_data():
