@@ -20,8 +20,13 @@ def load_quote_data(file_path):
     return pd.read_excel(file_path)
 
 quote_df = load_quote_data('email_scrape_results.xlsx')
-vq_details = load_quote_data('Scraping Results.xlsx')
+scraping_results_df = load_quote_data('Scraping Results.xlsx')
 score_df = pd.read_excel("sucess_score.xlsx")
+vq_details = scraping_results_df.merge(
+        score_df[["VQ#", "Score"]], on="VQ#", how="left"
+    )
+# Fill missing values in "Score" with 0
+vq_details["Score"] = vq_details["Score"].fillna(0)
 
 @st.cache_data
 def load_data():
