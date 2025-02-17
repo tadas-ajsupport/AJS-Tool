@@ -827,7 +827,7 @@ elif page == "Vendor Quotes":
 
     # Loading Manual Score
     score_df = pd.read_excel("sucess_score.xlsx")
-    vq_details = vq_details.merge(score_df[["VQ#", "Score"]], on="PN", how="left")
+    vq_details = vq_details.merge(score_df[["VQ#", "Score"]], on="VQ#", how="left")
     vq_details["Score"] = vq_details["Score"].fillna(0)
 
     # Function to expand rows based on "PN" column while maintaining column integrity
