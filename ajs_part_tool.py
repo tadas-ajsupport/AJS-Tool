@@ -38,6 +38,9 @@ def load_data():
 # Executing Loading Data Function
 vendor_df, customer_df, pn_master_df, stock_df, sales_df, purchases_df, activity_df = load_data()
 
+score_df = pd.read_excel("sucess_score.xlsx")
+vq_details = vq_details.merge(score_df[["VQ#", "Score"]], on="VQ#", how="left")
+vq_details["Score"] = vq_details["Score"].fillna(0)
 
 # </editor-fold>
 
@@ -818,31 +821,13 @@ elif page == "List Analysis":
         st.dataframe(table_stock, height=420, hide_index=True)
 
 # --- VENDOR QUOTE PAGE --- #
+# Loading Manual Score
 elif page == "Vendor Quotes":
     st.subheader(f"Vendor Quote Directory - {today}")
 
     # Ensure the main DataFrame is stored in session state for persistence
     if "vq_details" not in st.session_state:
         st.session_state.vq_details = vq_details.copy()  # Store DataFrame in session state
-
-    # Loading Manual Score
-    score_df = pd.read_excel("sucess_score.xlsx")
-
-    # Strip spaces from column names to ensure they match exactly
-    vq_details.columns = vq_details.columns.str.strip()
-    score_df.columns = score_df.columns.str.strip()
-
-    # Check if "VQ#" and "Score" exist in both DataFrames
-    if "VQ#" in vq_details.columns and "VQ#" in score_df.columns and "Score" in score_df.columns:
-        # Merge on "VQ#" instead of "PN"
-        vq_details = vq_details.merge(score_df[["VQ#", "Score"]], on="VQ#", how="left")
-
-        # Fill missing scores with 0
-        vq_details["Score"] = vq_details["Score"].fillna(0)
-    else:
-        st.error("Column mismatch: Ensure 'VQ#' and 'Score' exist in both data sources.")
-
-    vq_details["Score"] = vq_details["Score"].fillna(0)
 
     # Function to expand rows based on "PN" column while maintaining column integrity
     def expand_vendor_quote_data(df):
