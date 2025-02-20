@@ -833,38 +833,6 @@ elif page == "Vendor Quotes":
     if "vq_details" not in st.session_state:
         st.session_state.vq_details = vq_details.copy()  # Store DataFrame in session state
 
-    # Function to expand rows based on "PN" column while maintaining column integrity
-    def expand_vendor_quote_data(df):
-        if "PN" not in df.columns:
-            return df  # Return original if "PN" column is missing
-
-        expanded_rows = []
-
-        for _, row in df.iterrows():
-            pn_values = str(row["PN"]).split("; ") if pd.notna(row["PN"]) and "; " in str(row["PN"]) else [row["PN"]]
-
-            # Identify other columns that might have multiple values
-            split_values = {
-                col: str(row[col]).split("; ") if pd.notna(row[col]) and "; " in str(row[col]) else [row[col]]
-                for col in df.columns if col != "PN"
-            }
-
-            max_length = max(len(pn_values), *[len(v) for v in split_values.values()])
-
-            # Ensure all columns have consistent row counts
-            for col in split_values:
-                if len(split_values[col]) == 1:
-                    split_values[col] *= max_length  # Repeat single values across new rows
-                else:
-                    split_values[col] += [""] * (max_length - len(split_values[col]))  # Pad shorter lists
-
-            # Create new rows
-            for i in range(len(pn_values)):
-                new_row = {col: split_values[col][i] if col != "PN" else pn_values[i] for col in df.columns}
-                expanded_rows.append(new_row)
-
-        return pd.DataFrame(expanded_rows)
-
     # Filter search bar
     pn_sort_col, subj_sort_col = st.columns(2)
     with pn_sort_col:
@@ -894,15 +862,8 @@ elif page == "Vendor Quotes":
     # UI toggle for row expansion
     expand_rows = st.checkbox("Expand Rows")
 
-    # Apply expansion logic if checkbox is selected
-    if expand_rows:
-        st.session_state.vq_details = expand_vendor_quote_data(st.session_state.vq_details)
-
-    # Display the DataFrame
-    if not st.session_state.vq_details.empty:
-        st.dataframe(st.session_state.vq_details, hide_index=True)
-    else:
-        st.warning("No data matches the filter.")
+    st.dataframe(st.session_state.vq_details, hide_index=True)
+    st.warning("No data matches the filter.")
 
 
 
