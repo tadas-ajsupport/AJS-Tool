@@ -850,11 +850,7 @@ elif page == "Vendor Quotes":
     # Apply the filter and update the session state
     filter_quote_data(pn_filter, subj_filter)
 
-    # UI toggle for row expansion
-    expand_rows = st.checkbox("Expand Rows")
-
     st.dataframe(st.session_state.vq_details, hide_index=True)
-    st.warning("No data matches the filter.")
 
 
 
